@@ -512,7 +512,7 @@ impl Plugin for EguiPlugin {
                 .add_systems_to_schedule(
                     ExtractSchedule,
                     (
-                        set_up_primary_windows,
+                        setup_primary_window,
                         render_systems::extract_egui_render_data_system,
                         render_systems::extract_egui_textures_system,
                     ),
@@ -526,19 +526,21 @@ impl Plugin for EguiPlugin {
     }
 }
 
-fn set_up_primary_windows(
+fn setup_primary_window(
     primary_window: Extract<Query<Entity, With<PrimaryWindow>>>,
     mut render_graph: ResMut<RenderGraph>,
 ) {
-    // NOTE: This is all getting called every time!
-    let window = primary_window.get_single().unwrap();
-    setup_pipeline(
-        &mut render_graph,
-        RenderGraphConfig {
-            window,
-            egui_pass: node::EGUI_PASS,
-        },
-    );
+    if let Ok(window_entity) = primary_window.get_single() {
+        if render_graph.get_node::<EguiNode>(node::EGUI_PASS).is_err() {
+            setup_pipeline(
+                &mut render_graph,
+                RenderGraphConfig {
+                    window: window_entity,
+                    egui_pass: node::EGUI_PASS,
+                },
+            );
+        }
+    }
 }
 
 /// Contains textures allocated and painted by Egui.
