@@ -27,10 +27,10 @@ fn main() {
         .init_resource::<UiState>()
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
-        .add_startup_system(configure_visuals_system)
         .add_startup_system(configure_ui_state_system)
         .add_system(update_ui_scale_factor_system)
         .add_system(ui_example_system)
+        .add_system(configure_visuals_system)
         .run();
 }
 #[derive(Default, Resource)]
@@ -46,13 +46,17 @@ struct UiState {
 fn configure_visuals_system(
     mut egui_ctx: ResMut<EguiContext>,
     windows: Query<Entity, With<Window>>,
+    mut has_run: Local<bool>,
 ) {
-    egui_ctx
-        .ctx_for_window_mut(windows.iter().next().unwrap())
-        .set_visuals(egui::Visuals {
-            window_rounding: 0.0.into(),
-            ..Default::default()
-        });
+    if !*has_run {
+        egui_ctx
+            .ctx_for_window_mut(windows.iter().next().unwrap())
+            .set_visuals(egui::Visuals {
+                window_rounding: 0.0.into(),
+                ..Default::default()
+            });
+        *has_run = true;
+    }
 }
 
 fn configure_ui_state_system(mut ui_state: ResMut<UiState>) {
