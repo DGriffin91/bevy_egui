@@ -74,15 +74,15 @@ use bevy::{
     input::InputSystem,
     log,
     prelude::{
-        CoreSet, Deref, DerefMut, Entity, IntoSystemConfig, Resource, Shader, StartupSet,
-        SystemSet, With,
+        Added, CoreSet, Deref, DerefMut, Entity, IntoSystemConfig, Query, Resource, Shader,
+        StartupSet, SystemSet, With,
     },
     render::{
         render_graph::RenderGraph, render_resource::SpecializedRenderPipelines, texture::Image,
-        ExtractSchedule, RenderApp, RenderSet,
+        Extract, ExtractSchedule, RenderApp, RenderSet,
     },
     utils::HashMap,
-    window::Window,
+    window::{PrimaryWindow, Window},
 };
 use egui_node::EguiNode;
 #[cfg(all(feature = "manage_clipboard", not(target_arch = "wasm32")))]
@@ -512,6 +512,7 @@ impl Plugin for EguiPlugin {
                 .add_systems_to_schedule(
                     ExtractSchedule,
                     (
+                        set_up_primary_windows,
                         render_systems::extract_egui_render_data_system,
                         render_systems::extract_egui_textures_system,
                     ),
@@ -521,26 +522,23 @@ impl Plugin for EguiPlugin {
                 )
                 .add_system(render_systems::queue_bind_groups_system.in_set(RenderSet::Queue))
                 .add_system(render_systems::queue_pipelines_system.in_set(RenderSet::Queue));
-
-            // TODO window doesn't exist yet
-            let window = render_app
-                .world
-                .query_filtered::<Entity, With<Window>>()
-                .iter(&render_app.world)
-                .next()
-                .unwrap();
-
-            let mut render_graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
-
-            setup_pipeline(
-                &mut render_graph,
-                RenderGraphConfig {
-                    window,
-                    egui_pass: node::EGUI_PASS,
-                },
-            );
         }
     }
+}
+
+fn set_up_primary_windows(
+    primary_window: Extract<Query<Entity, With<PrimaryWindow>>>,
+    mut render_graph: ResMut<RenderGraph>,
+) {
+    // NOTE: This is all getting called every time!
+    let window = primary_window.get_single().unwrap();
+    setup_pipeline(
+        &mut render_graph,
+        RenderGraphConfig {
+            window,
+            egui_pass: node::EGUI_PASS,
+        },
+    );
 }
 
 /// Contains textures allocated and painted by Egui.
@@ -663,8 +661,6 @@ pub fn setup_pipeline(render_graph: &mut RenderGraph, config: RenderGraphConfig)
         bevy::render::main_graph::node::CAMERA_DRIVER,
         config.egui_pass,
     );
-
-    let _ = render_graph.add_node_edge("ui_pass_driver", config.egui_pass);
 }
 
 #[cfg(test)]
