@@ -1,9 +1,9 @@
 use bevy::{
     prelude::*,
-    render::{camera::RenderTarget, render_graph::RenderGraph, RenderApp},
-    window::{PresentMode, WindowRef, WindowResolution},
+    render::{camera::RenderTarget, render_graph::RenderGraph, Extract, RenderApp},
+    window::{PresentMode, PrimaryWindow, WindowRef, WindowResolution},
 };
-use bevy_egui::{EguiContext, EguiPlugin};
+use bevy_egui::{egui_node::EguiNode, EguiContext, EguiPlugin};
 
 //TODO WindowId::new
 //static SECOND_WINDOW_ID: Lazy<WindowId> = Lazy::new(WindowId::new);
@@ -12,6 +12,8 @@ use bevy_egui::{EguiContext, EguiPlugin};
 struct Images {
     bevy_icon: Handle<Image>,
 }
+
+type SecondaryWindowFilter = (With<Window>, Without<PrimaryWindow>);
 
 fn main() {
     let mut app = App::new();
@@ -24,24 +26,28 @@ fn main() {
         .add_system(ui_second_window_system);
 
     let render_app = app.sub_app_mut(RenderApp);
-    let window = render_app
-        .world
-        .query_filtered::<Entity, With<Window>>()
-        .iter(&render_app.world)
-        .next()
-        .unwrap();
-
-    let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
-
-    bevy_egui::setup_pipeline(
-        &mut graph,
-        bevy_egui::RenderGraphConfig {
-            window,
-            egui_pass: SECONDARY_EGUI_PASS,
-        },
-    );
+    render_app.add_system_to_schedule(ExtractSchedule, setup_second_window);
 
     app.run();
+}
+
+fn setup_second_window(
+    second_window: Extract<Query<Entity, SecondaryWindowFilter>>,
+    mut render_graph: ResMut<RenderGraph>,
+) {
+    let window = second_window.get_single().unwrap();
+    if render_graph
+        .get_node::<EguiNode>(SECONDARY_EGUI_PASS)
+        .is_err()
+    {
+        bevy_egui::setup_pipeline(
+            &mut render_graph,
+            bevy_egui::RenderGraphConfig {
+                window,
+                egui_pass: SECONDARY_EGUI_PASS,
+            },
+        );
+    }
 }
 
 const SECONDARY_EGUI_PASS: &str = "secondary_egui_pass";
@@ -89,9 +95,9 @@ fn ui_first_window_system(
     mut ui_state: Local<UiState>,
     mut shared_ui_state: ResMut<SharedUiState>,
     images: Res<Images>,
-    windows: Query<Entity, With<Window>>,
+    primary_window: Query<Entity, With<PrimaryWindow>>,
 ) {
-    let first_window = windows.iter().nth(0).unwrap();
+    let first_window = primary_window.get_single().unwrap();
     let bevy_texture_id = egui_context.add_image(images.bevy_icon.clone_weak());
     egui::Window::new("First Window").vscroll(true).show(
         egui_context.ctx_for_window_mut(first_window),
@@ -115,9 +121,9 @@ fn ui_second_window_system(
     mut ui_state: Local<UiState>,
     mut shared_ui_state: ResMut<SharedUiState>,
     images: Res<Images>,
-    windows: Query<Entity, With<Window>>,
+    secondary_window: Query<Entity, SecondaryWindowFilter>,
 ) {
-    let second_window = windows.iter().nth(1).unwrap();
+    let second_window = secondary_window.get_single().unwrap();
     let bevy_texture_id = egui_context.add_image(images.bevy_icon.clone_weak());
     let ctx = match egui_context.try_ctx_for_window_mut(second_window) {
         Some(ctx) => ctx,
