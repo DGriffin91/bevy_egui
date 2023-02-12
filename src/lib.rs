@@ -74,15 +74,15 @@ use bevy::{
     input::InputSystem,
     log,
     prelude::{
-        Added, CoreSet, Deref, DerefMut, Entity, IntoSystemConfig, Query, Resource, Shader,
-        StartupSet, SystemSet, With,
+        CoreSet, Deref, DerefMut, Entity, IntoSystemConfig, Query, Resource, Shader, StartupSet,
+        SystemSet, With,
     },
     render::{
         render_graph::RenderGraph, render_resource::SpecializedRenderPipelines, texture::Image,
         Extract, ExtractSchedule, RenderApp, RenderSet,
     },
     utils::HashMap,
-    window::{PrimaryWindow, Window},
+    window::PrimaryWindow,
 };
 use egui_node::EguiNode;
 #[cfg(all(feature = "manage_clipboard", not(target_arch = "wasm32")))]
